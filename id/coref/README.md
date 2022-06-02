@@ -67,7 +67,22 @@ The `label` property denotes an arbitrary integer that is used to identify which
 
 As explained in the paper, mentions linked by an APPOS relation are concatenated, while mentions linked via EXAPPOS relations are dropped.
 
+## Model Training/Evaluation
+
+We trained and evaluated the c2f-coref models in our paper using the AllenNLP framework. For the best configuration, please run the training with the following command (requires GPU):
+
+```bash
+train_data_path=train.jsonl validation_data_path=dev.jsonl test_data_path=test.jsonl dataset_reader=coref-id \     model_name=$BERT_MODEL_NAME embedding_dim=1024 max_segment_length=512 freeze=false lexical_dropout=0.2 \
+max_span_width=30 feature_size=20 contextualize_embeddings=false \
+ffnn_layers=2 ffnn_hidden_dim=1024 ffnn_dropout=0.2 num_epochs=40 patience=10 lr=3e-4 gpu=$GPU_ID \
+allennlp train coref.jsonnet -s $TRAINED_MODEL_PATH --include-package training
+```
+
+`$BERT_MODEL_NAME` should be a reference to a model name on HuggingFace, such as `xlm-roberta-base`.
+
 ## License
+
+The COIN dataset is made available under the CC BY-SA 4.0 License.
 
 Shield: [![CC BY-SA 4.0][cc-by-sa-shield]][cc-by-sa]
 
