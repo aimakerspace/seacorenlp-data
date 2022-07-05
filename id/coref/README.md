@@ -50,29 +50,45 @@ The file format is structured as such:
       "end": 1,
       "text": "Adam",
       "type": "PROPER",
-      "label": 0
+      "cluster": 0
     },
     {
       "start": 4,
       "end": 5,
       "text": "He",
       "type": "PRONOUN",
-      "label": 0
+      "cluster": 0
     }
   ]
 }
 ```
 
-The `label` property denotes an arbitrary integer that is used to identify which mentions corefer (i.e. if they share the same label, they are coreferent.)
+The `cluster` property denotes an arbitrary integer that is used to identify which mentions corefer (i.e. if they share the same cluster integer, they are coreferent.)
 
 As explained in the paper, mentions linked by an APPOS relation are concatenated, while mentions linked via EXAPPOS relations are dropped.
 
-## Model Training/Evaluation
-
-We trained and evaluated the c2f-coref models in our paper using the AllenNLP framework. For the best configuration, please run the training with the following command (requires GPU):
+If you wish to preprocess the data in a way that is different from that in the paper, please run the following command:
 
 ```bash
-train_data_path=train.jsonl validation_data_path=dev.jsonl test_data_path=test.jsonl dataset_reader=coref-id \     model_name=$BERT_MODEL_NAME embedding_dim=1024 max_segment_length=512 freeze=false lexical_dropout=0.2 \
+python -m preprocess --input_path=$INPUT_FILEPATH --output_path=$OUTPUT_FILEPATH [--use_appos] [--use_aliases] [--use_exappos] [--remove_singletons]
+```
+
+The meaning of each flag is detailed in the following table:
+
+| Flag                | Meaning  |
+|---------------------|----------|
+| `use_appos`         | If flag is used, mentions linked via the `APPOS` relation will be concatenated together. Otherwise, the appositive mention will be dropped from the data. |
+| `use_exappos`       | If flag is used, mentions linked via the `EXAPPOS` relation will be placed in the same coreference chain. Otherwise, only the antecedent is kept and the anaphor will be dropped. |
+| `use_aliases`       | If flag is used, mentions linked via the `ALIAS` relation will be placed in the same coreference chain. Otherwise, only the antecedent is kept and the anaphor will be dropped. |
+| `remove_singletons` | If flag is used, all unlinked singletons will be dropped from the data. |
+
+## Model Training/Evaluation
+
+We trained and evaluated the c2f-coref models in our paper using the AllenNLP framework. Please ensure that you have `allennlp` and `allennlp-models` installed. For the best configuration, please run the training with the following command (requires GPU):
+
+```bash
+train_data_path=train.jsonl validation_data_path=dev.jsonl test_data_path=test.jsonl dataset_reader=coref-id \
+model_name=$BERT_MODEL_NAME embedding_dim=1024 max_segment_length=512 freeze=false lexical_dropout=0.2 \
 max_span_width=30 feature_size=20 contextualize_embeddings=false \
 ffnn_layers=2 ffnn_hidden_dim=1024 ffnn_dropout=0.2 num_epochs=40 patience=10 lr=3e-4 gpu=$GPU_ID \
 allennlp train coref.jsonnet -s $TRAINED_MODEL_PATH --include-package training
@@ -94,3 +110,5 @@ This work is licensed under a
 [cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
 [cc-by-sa-image]: https://licensebuttons.net/l/by-sa/4.0/88x31.png
 [cc-by-sa-shield]: https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg
+
+The code for training the model (everything in the `/training` folder) is made available under the Apache 2.0 License.
