@@ -20,11 +20,13 @@ class CorefDataPreprocessor:
     def __init__(
         self,
         use_appos: bool,
+        use_exappos: bool,
         use_aliases: bool,
         remove_singletons: bool
     ):
         # Flags
         self._use_appos: bool = use_appos
+        self._use_exappos: bool = use_exappos
         self._use_aliases: bool = use_aliases
         self._remove_singletons: bool = remove_singletons
 
@@ -35,6 +37,7 @@ class CorefDataPreprocessor:
         self._mention_dict: Dict[MentionID, MentionInformation] = {}
         self._clusters: List[Cluster] = []
         self._aliases: List[int] = []
+        self._exappos_mentions: List[int] = []
         self._appos_mentions: Set[int] = set()
 
         # Overall statistics-related properties
@@ -43,7 +46,6 @@ class CorefDataPreprocessor:
           "token_count": 0,
           "mention_count": 0,
           "cluster_count": 0,
-          "alias_count": 0,
           "singleton_count": 0
         }
         self._mention_types: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
@@ -148,7 +150,6 @@ class CorefDataPreprocessor:
         """
         mention_pairs: List[MentionPair] = []
         appositive_pairs: List[MentionPair] = []
-        explicit_appositive_pairs: List[MentionPair] = []
 
         labels = self._labels
 
@@ -168,9 +169,6 @@ class CorefDataPreprocessor:
                     if label_class == "APPOS":
                         appositive_pairs.append(mention_pair)
 
-                    elif label_class == "EXAPPOS":
-                        explicit_appositive_pairs.append(mention_pair)
-
                     else:
                         mention_pairs.append(mention_pair)
 
@@ -178,6 +176,11 @@ class CorefDataPreprocessor:
                         if not self._use_aliases:
                             if label_class == "ALIAS":
                                 self._aliases.append(mention_pair[1])
+
+                        # Keep track of mentions linked by EXAPPOS for removal
+                        if not self._use_exappos:
+                            if label_class == "EXAPPOS":
+                                self._exappos_mentions.append(mention_pair[1])
 
         # Check if all mentions in coreference links are valid
         for mention_pair in mention_pairs:
@@ -202,7 +205,7 @@ class CorefDataPreprocessor:
             matched = False
             for i, cluster in enumerate(self._clusters):
                 if mention_id in cluster:
-                    mention_info["label"] = i
+                    mention_info["cluster"] = i
                     matched = True
                     break
 
@@ -220,7 +223,11 @@ class CorefDataPreprocessor:
                 self._mention_dict.pop(mention_id)
                 self._clusters = [cluster - {mention_id} for cluster in self._clusters]
 
-        self._statistics["alias_count"] += len(self._aliases)
+    def _remove_exappos(self) -> None:
+        if len(self._exappos_mentions) > 0:
+            for mention_id in self._exappos_mentions:
+                self._mention_dict.pop(mention_id)
+                self._clusters =  [cluster - {mention_id} for cluster in self._clusters]
 
     def get_paragraph_data(self, paragraph: str) -> None:
         tokens: List[str] = []
@@ -254,6 +261,9 @@ class CorefDataPreprocessor:
         if not self._use_aliases:
             self._remove_aliases()
 
+        if not self._use_exappos:
+            self._remove_exappos()
+
     def reset(self) -> None:
         self._text = ""
         self._tokens = []
@@ -268,7 +278,6 @@ class CorefDataPreprocessor:
         token_count = self._statistics["token_count"]
         mention_count = self._statistics["mention_count"]
         cluster_count = self._statistics["cluster_count"]
-        alias_count = self._statistics["alias_count"]
         singleton_count = self._statistics["singleton_count"]
 
         print("\nStatistics:\n--------------------------")
@@ -282,12 +291,8 @@ class CorefDataPreprocessor:
         print(f"Average number of clusters per paragraph: {(cluster_count / paragraph_count):.1f}")
         print(f"Average cluster size: {(mention_count / cluster_count):.1f} \n")
 
-        if not self._use_aliases:
-            print(f"Mentions removed due to ALIAS linkage: {alias_count}")
-
         if self._remove_singletons:
-            print(f"Singleton mentions removed: {singleton_count}")
-        print("")
+            print(f"Singleton mentions removed: {singleton_count} \n")
 
         for link_type, count in self._link_types.items():
             print(f"{link_type}: {count} links")
@@ -357,10 +362,14 @@ if __name__ == '__main__':
     parser.add_argument("--output_path", type=str, required=True)
     parser.add_argument("--use_aliases", action="store_true")
     parser.add_argument("--use_appos", action="store_true")
+    parser.add_argument("--use_exappos", action="store_true")
     parser.add_argument("--remove_singletons", action="store_true")
     args = parser.parse_args()
 
     preprocessor = CorefDataPreprocessor(
-        args.use_appos, args.use_aliases, args.remove_singletons
+        use_appos=args.use_appos,
+        use_exappos=args.use_exappos,
+        use_aliases=args.use_aliases,
+        remove_singletons=args.remove_singletons
     )
     preprocessor.convert_tsv_to_jsonl(args.input_path, args.output_path)
