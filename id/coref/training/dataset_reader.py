@@ -12,7 +12,7 @@ ClusterId = int
 SpanIndices = Tuple[int, int]
 
 
-@DatasetReader.register('coref-id')
+@DatasetReader.register("coref-id")
 class IndonesianCorefDatasetReader(DatasetReader):
     def __init__(
         self,
@@ -34,7 +34,7 @@ class IndonesianCorefDatasetReader(DatasetReader):
         documents = []
 
         # Read jsonl file
-        with open(file_path, 'r') as f:
+        with open(file_path, "r") as f:
             for line in f:
                 documents.append(json.loads(line))
             f.close()
@@ -42,13 +42,13 @@ class IndonesianCorefDatasetReader(DatasetReader):
         for sentences in documents:
             clusters: DefaultDict[ClusterId, List[SpanIndices]] = collections.defaultdict(list)
 
-            tokens, corefs = sentences['tokens'], sentences["corefs"]
+            tokens, corefs = sentences["tokens"], sentences["corefs"]
             tokens = [token.lower() for token in tokens]
 
             for coref in corefs:
-                if 'label' not in coref:
+                if "cluster" not in coref:
                     continue
-                cluster_id, start, end = coref['label'], coref['start'], coref['end']
+                cluster_id, start, end = coref["cluster"], coref["start"], coref["end"]
                 clusters[cluster_id].append((start, end))
 
             yield self.text_to_instance([tokens], list(clusters.values()))

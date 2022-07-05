@@ -205,7 +205,7 @@ class CorefDataPreprocessor:
             matched = False
             for i, cluster in enumerate(self._clusters):
                 if mention_id in cluster:
-                    mention_info["label"] = i
+                    mention_info["cluster"] = i
                     matched = True
                     break
 
